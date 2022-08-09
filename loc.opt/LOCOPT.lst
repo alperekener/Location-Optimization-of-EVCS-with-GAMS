@@ -1,0 +1,910 @@
+GAMS 40.1.0  93c2a77b Aug 1, 2022           WEX-WEI x86 64bit/MS Windows - 08/09/22 17:34:10 Page 1
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+C o m p i l a t i o n
+
+
+   1  sets
+   2  v vehicles /car1, car2, car3/
+   3  t time horizon /morning,noon,evening/
+   4  j candidate locations /basaksehir, besiktas, kadikoy, cekmekoy/
+   5  ;
+   6   
+   7  scalar
+   8  R_initial_Car1 amount of initial charge (km) of vehicle car1 /20/
+   9  R_initial_Car2 amount of initial charge (km) of vehicle car2 /50/
+  10  R_initial_Car3 amount of initial charge (km) of vehicle car3 /60/
+  11  ;
+  12   
+  13   
+  14  parameters
+  15  q(j) capacity of the candidate locations
+  16  /basaksehir 8
+  17   besiktas 15
+  18   kadikoy 15
+  19   cekmekoy 10/
+  20   
+  21  k(v) battery capacity (km) of the vehicles
+  22  /car1 100
+  23   car2 100
+  24   car3 100/;
+  25   
+  26  table n(v,t) distance to target location
+  27        morning    noon    evening
+  28  car1  16         10      5
+  29  car2  35         11      38
+  30  car3  21         31      17
+  31  ;
+  32   
+  33  table d(v,t,j) the distance between the location of v in period t and location j
+  34                  basaksehir  besiktas  kadikoy  cekmekoy
+  35  car1.morning    15          21        25       56
+  36  car1.noon       15          15        18       49
+  37  car1.evening    15          21        25       56
+  38  car2.morning    10          25        38       52
+  39  car2.noon       34          12        8        17
+  40  car2.evening    43          20        5        33
+  41  car3.morning    53          26        12       29
+  42  car3.noon       40          14        11       29
+  43  car3.evening    60          38        31       17 ;
+  44   
+  45  table e(v,t,j) the distance between location j and destination
+  46                  basaksehir  besiktas  kadikoy  cekmekoy
+  47  car1.morning    16          15        17       52
+  48  car1.noon       16          21        25       58
+  49  car1.evening    16          21        25       58
+  50  car2.morning    44          12        13       36
+  51  car2.noon       44          25        7        36
+  52  car2.evening    12          21        38       54
+  53  car3.morning    38          19        11       30
+  54  car3.noon       59          40        35       19
+  55  car3.evening    52          36        20       29 ;
+  56   
+  57  variable
+  58  Z objective function ;
+  59   
+  60  positive variable
+  61  r(v,t) amount of current charge (km) of vehicle v in period t
+  62  a(v,t) amount of charge (km) that vehicle v receives in period t
+  63  p The minimum number of the electic charge stations
+  64  ;
+  65   
+  66  binary variable
+  67  x(v,t,j) whether v vehicle is charging in period
+  68  y(j) whether to open a charging station at candidate location j
+  69  ;
+  70   
+  71  equation
+  72  objective To minimize the distance of any vehicle from any charging station at any time.
+  73  constraint1 A vehicle cannot be charged at more than one station at the same time.
+  74  constraint2 Every vehicle must be charged at least once a day.
+  75  constraint3 In order for charging station must first be opened at that location.
+  76  constraint4 If the capacity of the station is full vehicles cannot be charged there.
+  77  constraint5 The number of stations opened should be the minimum amount.
+  78  constraint6 Charge received from a station cannot exceed the charge capacity of the vehicle
+  79  constraint7 Vehicles cannot be discharged
+  80  constraint8 Vehicles should be able to go to the station if needed.
+  81  constraint9 The charge value is 0 if we are not going to visit location j
+  82  constraint10 If the range is not enough it indicates that we have to go to the charging station
+  83  constraint11 Current range to decrease by the distance we travel
+  84  constraint12 The initial available range amounts of car1
+  85  constraint13 The initial available range amounts of car2
+  86  constraint14 The initial available range amounts of car3
+  87  ;
+  88   
+  89   
+  90  objective.. Z =e= sum((v,t,j),d(v,t,j)*x(v,t,j));
+  91   
+  92  constraint1(v,t).. sum(j,x(v,t,j)) =l= 1;
+  93  constraint2(v).. sum((t,j),x(v,t,j)) =g= 1;
+  94  constraint3(v,t,j).. x(v,t,j) =l= y(j);
+  95  constraint4(t,j).. sum(v,x(v,t,j)) =l= q(j)*y(j);
+  96  constraint5.. sum((v,t,j),x(v,t,j)) =l= p;
+  97  constraint6(v,t,j).. r(v,t)+a(v,t)-(d(v,t,j)*x(v,t,j)) =l= k(v);
+  98  constraint7(v,t).. a(v,t) =g= 0;
+  99  constraint8(v,t,j).. r(v,t) =g= d(v,t,j)*x(v,t,j);
+ 100  constraint9(v,t).. a(v,t) =l= k(v)*sum(j,x(v,t,j));
+ 101  constraint10(v,t).. r(v,t)+a(v,t)-sum(j,((e(v,t,j)+d(v,t,j))*x(v,t,j)))-(n(v,t)*(1-sum(j,x(v,t,j)))) =g= 0;
+ 102  constraint11(v,t+1).. r(v,t+1) =e= r(v,t)+a(v,t)-sum(j,((e(v,t,j)+d(v,t,j))*x(v,t,j)))-(n(v,t)*(1-sum(j,x(v,t,j)))) ;
+ 103  constraint12.. r('car1','morning') =e= R_initial_Car1;
+ 104  constraint13.. r('car2','morning') =e= R_initial_Car2;
+ 105  constraint14.. r('car3','morning') =e= R_initial_Car3;
+ 106   
+ 107   
+ 108  model LOCOPT /all/;
+ 109  solve LOCOPT using MIP minimizing Z;
+ 110  display x.l,r.l,a.l,p.l,y.l;
+ 111   
+ 112   
+ 113   
+ 114   
+ 115   
+ 116   
+ 117   
+ 118   
+ 119   
+ 120   
+ 121   
+
+
+COMPILATION TIME     =        0.000 SECONDS      3 MB  40.1.0 93c2a77b WEX-WEI
+GAMS 40.1.0  93c2a77b Aug 1, 2022           WEX-WEI x86 64bit/MS Windows - 08/09/22 17:34:10 Page 2
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Equation Listing    SOLVE LOCOPT Using MIP From line 109
+
+
+---- objective  =E=  To minimize the distance of any vehicle from any charging station at any time.
+
+objective..  Z - 15*x(car1,morning,basaksehir) - 21*x(car1,morning,besiktas) - 25*x(car1,morning,kadikoy) - 56*x(car1,morning,cekmekoy) - 15*x(car1,noon,basaksehir) - 15*x(car1,noon,besiktas) - 18*x(car1,noon,kadikoy) - 49*x(car1,noon,cekmekoy) - 15*x(car1,evening,basaksehir) - 21*x(car1,evening,besiktas) - 25*x(car1,evening,kadikoy) - 56*x(car1,evening,cekmekoy) - 10*x(car2,morning,basaksehir) - 25*x(car2,morning,besiktas) - 38*x(car2,morning,kadikoy) - 52*x(car2,morning,cekmekoy) - 34*x(car2,noon,basaksehir) - 12*x(car2,noon,besiktas) - 8*x(car2,noon,kadikoy) - 17*x(car2,noon,cekmekoy) - 43*x(car2,evening,basaksehir) - 20*x(car2,evening,besiktas) - 5*x(car2,evening,kadikoy) - 33*x(car2,evening,cekmekoy) - 53*x(car3,morning,basaksehir) - 26*x(car3,morning,besiktas) - 12*x(car3,morning,kadikoy) - 29*x(car3,morning,cekmekoy) - 40*x(car3,noon,basaksehir) - 14*x(car3,noon,besiktas) - 11*x(car3,noon,kadikoy) - 29*x(car3,noon,cekmekoy) - 60*x(car3,evening,basaksehir) - 38*x(car3,evening,besiktas) - 31*x(car3,evening,kadikoy) - 17*x(car3,evening,cekmekoy) =E= 0 ; (LHS = 0)
+     
+
+---- constraint1  =L=  A vehicle cannot be charged at more than one station at the same time.
+
+constraint1(car1,morning)..  x(car1,morning,basaksehir) + x(car1,morning,besiktas) + x(car1,morning,kadikoy) + x(car1,morning,cekmekoy) =L= 1 ; (LHS = 0)
+     
+constraint1(car1,noon)..  x(car1,noon,basaksehir) + x(car1,noon,besiktas) + x(car1,noon,kadikoy) + x(car1,noon,cekmekoy) =L= 1 ; (LHS = 0)
+     
+constraint1(car1,evening)..  x(car1,evening,basaksehir) + x(car1,evening,besiktas) + x(car1,evening,kadikoy) + x(car1,evening,cekmekoy) =L= 1 ; (LHS = 0)
+     
+REMAINING 6 ENTRIES SKIPPED
+
+
+---- constraint2  =G=  Every vehicle must be charged at least once a day.
+
+constraint2(car1)..  x(car1,morning,basaksehir) + x(car1,morning,besiktas) + x(car1,morning,kadikoy) + x(car1,morning,cekmekoy) + x(car1,noon,basaksehir) + x(car1,noon,besiktas) + x(car1,noon,kadikoy) + x(car1,noon,cekmekoy) + x(car1,evening,basaksehir) + x(car1,evening,besiktas) + x(car1,evening,kadikoy) + x(car1,evening,cekmekoy) =G= 1 ; (LHS = 0, INFES = 1 ****)
+     
+constraint2(car2)..  x(car2,morning,basaksehir) + x(car2,morning,besiktas) + x(car2,morning,kadikoy) + x(car2,morning,cekmekoy) + x(car2,noon,basaksehir) + x(car2,noon,besiktas) + x(car2,noon,kadikoy) + x(car2,noon,cekmekoy) + x(car2,evening,basaksehir) + x(car2,evening,besiktas) + x(car2,evening,kadikoy) + x(car2,evening,cekmekoy) =G= 1 ; (LHS = 0, INFES = 1 ****)
+     
+constraint2(car3)..  x(car3,morning,basaksehir) + x(car3,morning,besiktas) + x(car3,morning,kadikoy) + x(car3,morning,cekmekoy) + x(car3,noon,basaksehir) + x(car3,noon,besiktas) + x(car3,noon,kadikoy) + x(car3,noon,cekmekoy) + x(car3,evening,basaksehir) + x(car3,evening,besiktas) + x(car3,evening,kadikoy) + x(car3,evening,cekmekoy) =G= 1 ; (LHS = 0, INFES = 1 ****)
+     
+
+---- constraint3  =L=  In order for charging station must first be opened at that location.
+
+constraint3(car1,morning,basaksehir)..  x(car1,morning,basaksehir) - y(basaksehir) =L= 0 ; (LHS = 0)
+     
+constraint3(car1,morning,besiktas)..  x(car1,morning,besiktas) - y(besiktas) =L= 0 ; (LHS = 0)
+     
+constraint3(car1,morning,kadikoy)..  x(car1,morning,kadikoy) - y(kadikoy) =L= 0 ; (LHS = 0)
+     
+REMAINING 33 ENTRIES SKIPPED
+
+
+---- constraint4  =L=  If the capacity of the station is full vehicles cannot be charged there.
+
+constraint4(morning,basaksehir)..  x(car1,morning,basaksehir) + x(car2,morning,basaksehir) + x(car3,morning,basaksehir) - 8*y(basaksehir) =L= 0 ; (LHS = 0)
+     
+constraint4(morning,besiktas)..  x(car1,morning,besiktas) + x(car2,morning,besiktas) + x(car3,morning,besiktas) - 15*y(besiktas) =L= 0 ; (LHS = 0)
+     
+constraint4(morning,kadikoy)..  x(car1,morning,kadikoy) + x(car2,morning,kadikoy) + x(car3,morning,kadikoy) - 15*y(kadikoy) =L= 0 ; (LHS = 0)
+     
+REMAINING 9 ENTRIES SKIPPED
+
+
+---- constraint5  =L=  The number of stations opened should be the minimum amount.
+
+constraint5..  - p + x(car1,morning,basaksehir) + x(car1,morning,besiktas) + x(car1,morning,kadikoy) + x(car1,morning,cekmekoy) + x(car1,noon,basaksehir) + x(car1,noon,besiktas) + x(car1,noon,kadikoy) + x(car1,noon,cekmekoy) + x(car1,evening,basaksehir) + x(car1,evening,besiktas) + x(car1,evening,kadikoy) + x(car1,evening,cekmekoy) + x(car2,morning,basaksehir) + x(car2,morning,besiktas) + x(car2,morning,kadikoy) + x(car2,morning,cekmekoy) + x(car2,noon,basaksehir) + x(car2,noon,besiktas) + x(car2,noon,kadikoy) + x(car2,noon,cekmekoy) + x(car2,evening,basaksehir) + x(car2,evening,besiktas) + x(car2,evening,kadikoy) + x(car2,evening,cekmekoy) + x(car3,morning,basaksehir) + x(car3,morning,besiktas) + x(car3,morning,kadikoy) + x(car3,morning,cekmekoy) + x(car3,noon,basaksehir) + x(car3,noon,besiktas) + x(car3,noon,kadikoy) + x(car3,noon,cekmekoy) + x(car3,evening,basaksehir) + x(car3,evening,besiktas) + x(car3,evening,kadikoy) + x(car3,evening,cekmekoy) =L= 0 ; (LHS = 0)
+     
+
+---- constraint6  =L=  Charge received from a station cannot exceed the charge capacity of the vehicle
+
+constraint6(car1,morning,basaksehir)..  r(car1,morning) + a(car1,morning) - 15*x(car1,morning,basaksehir) =L= 100 ; (LHS = 0)
+     
+constraint6(car1,morning,besiktas)..  r(car1,morning) + a(car1,morning) - 21*x(car1,morning,besiktas) =L= 100 ; (LHS = 0)
+     
+constraint6(car1,morning,kadikoy)..  r(car1,morning) + a(car1,morning) - 25*x(car1,morning,kadikoy) =L= 100 ; (LHS = 0)
+     
+REMAINING 33 ENTRIES SKIPPED
+
+
+---- constraint7  =G=  Vehicles cannot be discharged
+
+constraint7(car1,morning)..  a(car1,morning) =G= 0 ; (LHS = 0)
+     
+constraint7(car1,noon)..  a(car1,noon) =G= 0 ; (LHS = 0)
+     
+constraint7(car1,evening)..  a(car1,evening) =G= 0 ; (LHS = 0)
+     
+REMAINING 6 ENTRIES SKIPPED
+
+
+---- constraint8  =G=  Vehicles should be able to go to the station if needed.
+
+constraint8(car1,morning,basaksehir)..  r(car1,morning) - 15*x(car1,morning,basaksehir) =G= 0 ; (LHS = 0)
+     
+constraint8(car1,morning,besiktas)..  r(car1,morning) - 21*x(car1,morning,besiktas) =G= 0 ; (LHS = 0)
+     
+constraint8(car1,morning,kadikoy)..  r(car1,morning) - 25*x(car1,morning,kadikoy) =G= 0 ; (LHS = 0)
+     
+REMAINING 33 ENTRIES SKIPPED
+
+
+---- constraint9  =L=  The charge value is 0 if we are not going to visit location j
+
+constraint9(car1,morning)..  a(car1,morning) - 100*x(car1,morning,basaksehir) - 100*x(car1,morning,besiktas) - 100*x(car1,morning,kadikoy) - 100*x(car1,morning,cekmekoy) =L= 0 ; (LHS = 0)
+     
+constraint9(car1,noon)..  a(car1,noon) - 100*x(car1,noon,basaksehir) - 100*x(car1,noon,besiktas) - 100*x(car1,noon,kadikoy) - 100*x(car1,noon,cekmekoy) =L= 0 ; (LHS = 0)
+     
+constraint9(car1,evening)..  a(car1,evening) - 100*x(car1,evening,basaksehir) - 100*x(car1,evening,besiktas) - 100*x(car1,evening,kadikoy) - 100*x(car1,evening,cekmekoy) =L= 0 ; (LHS = 0)
+     
+REMAINING 6 ENTRIES SKIPPED
+
+
+---- constraint10  =G=  If the range is not enough it indicates that we have to go to the charging station
+
+constraint10(car1,morning)..  r(car1,morning) + a(car1,morning) - 15*x(car1,morning,basaksehir) - 20*x(car1,morning,besiktas) - 26*x(car1,morning,kadikoy) - 92*x(car1,morning,cekmekoy) =G= 16 ; (LHS = 0, INFES = 16 ****)
+     
+constraint10(car1,noon)..  r(car1,noon) + a(car1,noon) - 21*x(car1,noon,basaksehir) - 26*x(car1,noon,besiktas) - 33*x(car1,noon,kadikoy) - 97*x(car1,noon,cekmekoy) =G= 10 ; (LHS = 0, INFES = 10 ****)
+     
+constraint10(car1,evening)..  r(car1,evening) + a(car1,evening) - 26*x(car1,evening,basaksehir) - 37*x(car1,evening,besiktas) - 45*x(car1,evening,kadikoy) - 109*x(car1,evening,cekmekoy) =G= 5 ; (LHS = 0, INFES = 5 ****)
+     
+REMAINING 6 ENTRIES SKIPPED
+
+
+---- constraint11  =E=  Current range to decrease by the distance we travel
+
+constraint11(car1,noon)..  - r(car1,morning) + r(car1,noon) - a(car1,morning) + 15*x(car1,morning,basaksehir) + 20*x(car1,morning,besiktas) + 26*x(car1,morning,kadikoy) + 92*x(car1,morning,cekmekoy) =E= -16 ; (LHS = 0, INFES = 16 ****)
+     
+constraint11(car1,evening)..  - r(car1,noon) + r(car1,evening) - a(car1,noon) + 21*x(car1,noon,basaksehir) + 26*x(car1,noon,besiktas) + 33*x(car1,noon,kadikoy) + 97*x(car1,noon,cekmekoy) =E= -10 ; (LHS = 0, INFES = 10 ****)
+     
+constraint11(car2,noon)..  - r(car2,morning) + r(car2,noon) - a(car2,morning) + 19*x(car2,morning,basaksehir) + 2*x(car2,morning,besiktas) + 16*x(car2,morning,kadikoy) + 53*x(car2,morning,cekmekoy) =E= -35 ; (LHS = 0, INFES = 35 ****)
+     
+REMAINING 3 ENTRIES SKIPPED
+
+
+---- constraint12  =E=  The initial available range amounts of car1
+
+constraint12..  r(car1,morning) =E= 20 ; (LHS = 0, INFES = 20 ****)
+     
+
+---- constraint13  =E=  The initial available range amounts of car2
+
+constraint13..  r(car2,morning) =E= 50 ; (LHS = 0, INFES = 50 ****)
+     
+
+---- constraint14  =E=  The initial available range amounts of car3
+
+constraint14..  r(car3,morning) =E= 60 ; (LHS = 0, INFES = 60 ****)
+     
+GAMS 40.1.0  93c2a77b Aug 1, 2022           WEX-WEI x86 64bit/MS Windows - 08/09/22 17:34:10 Page 3
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Column Listing      SOLVE LOCOPT Using MIP From line 109
+
+
+---- Z  objective function
+
+Z
+                (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
+        1       objective
+
+
+---- r  amount of current charge (km) of vehicle v in period t
+
+r(car1,morning)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       constraint6(car1,morning,basaksehir)
+        1       constraint6(car1,morning,besiktas)
+        1       constraint6(car1,morning,kadikoy)
+        1       constraint6(car1,morning,cekmekoy)
+        1       constraint8(car1,morning,basaksehir)
+        1       constraint8(car1,morning,besiktas)
+        1       constraint8(car1,morning,kadikoy)
+        1       constraint8(car1,morning,cekmekoy)
+        1       constraint10(car1,morning)
+       -1       constraint11(car1,noon)
+        1       constraint12
+
+r(car1,noon)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       constraint6(car1,noon,basaksehir)
+        1       constraint6(car1,noon,besiktas)
+        1       constraint6(car1,noon,kadikoy)
+        1       constraint6(car1,noon,cekmekoy)
+        1       constraint8(car1,noon,basaksehir)
+        1       constraint8(car1,noon,besiktas)
+        1       constraint8(car1,noon,kadikoy)
+        1       constraint8(car1,noon,cekmekoy)
+        1       constraint10(car1,noon)
+        1       constraint11(car1,noon)
+       -1       constraint11(car1,evening)
+
+r(car1,evening)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       constraint6(car1,evening,basaksehir)
+        1       constraint6(car1,evening,besiktas)
+        1       constraint6(car1,evening,kadikoy)
+        1       constraint6(car1,evening,cekmekoy)
+        1       constraint8(car1,evening,basaksehir)
+        1       constraint8(car1,evening,besiktas)
+        1       constraint8(car1,evening,kadikoy)
+        1       constraint8(car1,evening,cekmekoy)
+        1       constraint10(car1,evening)
+        1       constraint11(car1,evening)
+
+REMAINING 6 ENTRIES SKIPPED
+
+---- a  amount of charge (km) that vehicle v receives in period t
+
+a(car1,morning)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       constraint6(car1,morning,basaksehir)
+        1       constraint6(car1,morning,besiktas)
+        1       constraint6(car1,morning,kadikoy)
+        1       constraint6(car1,morning,cekmekoy)
+        1       constraint7(car1,morning)
+        1       constraint9(car1,morning)
+        1       constraint10(car1,morning)
+       -1       constraint11(car1,noon)
+
+a(car1,noon)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       constraint6(car1,noon,basaksehir)
+        1       constraint6(car1,noon,besiktas)
+        1       constraint6(car1,noon,kadikoy)
+        1       constraint6(car1,noon,cekmekoy)
+        1       constraint7(car1,noon)
+        1       constraint9(car1,noon)
+        1       constraint10(car1,noon)
+       -1       constraint11(car1,evening)
+
+a(car1,evening)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+        1       constraint6(car1,evening,basaksehir)
+        1       constraint6(car1,evening,besiktas)
+        1       constraint6(car1,evening,kadikoy)
+        1       constraint6(car1,evening,cekmekoy)
+        1       constraint7(car1,evening)
+        1       constraint9(car1,evening)
+        1       constraint10(car1,evening)
+
+REMAINING 6 ENTRIES SKIPPED
+
+---- p  The minimum number of the electic charge stations
+
+p
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       constraint5
+
+
+---- x  whether v vehicle is charging in period
+
+x(car1,morning,basaksehir)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+      -15       objective
+        1       constraint1(car1,morning)
+        1       constraint2(car1)
+        1       constraint3(car1,morning,basaksehir)
+        1       constraint4(morning,basaksehir)
+        1       constraint5
+      -15       constraint6(car1,morning,basaksehir)
+      -15       constraint8(car1,morning,basaksehir)
+     -100       constraint9(car1,morning)
+      -15       constraint10(car1,morning)
+       15       constraint11(car1,noon)
+
+x(car1,morning,besiktas)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+      -21       objective
+        1       constraint1(car1,morning)
+        1       constraint2(car1)
+        1       constraint3(car1,morning,besiktas)
+        1       constraint4(morning,besiktas)
+        1       constraint5
+      -21       constraint6(car1,morning,besiktas)
+      -21       constraint8(car1,morning,besiktas)
+     -100       constraint9(car1,morning)
+      -20       constraint10(car1,morning)
+       20       constraint11(car1,noon)
+
+x(car1,morning,kadikoy)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+      -25       objective
+        1       constraint1(car1,morning)
+        1       constraint2(car1)
+        1       constraint3(car1,morning,kadikoy)
+        1       constraint4(morning,kadikoy)
+        1       constraint5
+      -25       constraint6(car1,morning,kadikoy)
+      -25       constraint8(car1,morning,kadikoy)
+     -100       constraint9(car1,morning)
+      -26       constraint10(car1,morning)
+       26       constraint11(car1,noon)
+
+REMAINING 33 ENTRIES SKIPPED
+
+---- y  whether to open a charging station at candidate location j
+
+y(basaksehir)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+       -1       constraint3(car1,morning,basaksehir)
+       -1       constraint3(car1,noon,basaksehir)
+       -1       constraint3(car1,evening,basaksehir)
+       -1       constraint3(car2,morning,basaksehir)
+       -1       constraint3(car2,noon,basaksehir)
+       -1       constraint3(car2,evening,basaksehir)
+       -1       constraint3(car3,morning,basaksehir)
+       -1       constraint3(car3,noon,basaksehir)
+       -1       constraint3(car3,evening,basaksehir)
+       -8       constraint4(morning,basaksehir)
+       -8       constraint4(noon,basaksehir)
+       -8       constraint4(evening,basaksehir)
+
+y(besiktas)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+       -1       constraint3(car1,morning,besiktas)
+       -1       constraint3(car1,noon,besiktas)
+       -1       constraint3(car1,evening,besiktas)
+       -1       constraint3(car2,morning,besiktas)
+       -1       constraint3(car2,noon,besiktas)
+       -1       constraint3(car2,evening,besiktas)
+       -1       constraint3(car3,morning,besiktas)
+       -1       constraint3(car3,noon,besiktas)
+       -1       constraint3(car3,evening,besiktas)
+      -15       constraint4(morning,besiktas)
+      -15       constraint4(noon,besiktas)
+      -15       constraint4(evening,besiktas)
+
+y(kadikoy)
+                (.LO, .L, .UP, .M = 0, 0, 1, 0)
+       -1       constraint3(car1,morning,kadikoy)
+       -1       constraint3(car1,noon,kadikoy)
+       -1       constraint3(car1,evening,kadikoy)
+       -1       constraint3(car2,morning,kadikoy)
+       -1       constraint3(car2,noon,kadikoy)
+       -1       constraint3(car2,evening,kadikoy)
+       -1       constraint3(car3,morning,kadikoy)
+       -1       constraint3(car3,noon,kadikoy)
+       -1       constraint3(car3,evening,kadikoy)
+      -15       constraint4(morning,kadikoy)
+      -15       constraint4(noon,kadikoy)
+      -15       constraint4(evening,kadikoy)
+
+REMAINING ENTRY SKIPPED
+GAMS 40.1.0  93c2a77b Aug 1, 2022           WEX-WEI x86 64bit/MS Windows - 08/09/22 17:34:10 Page 4
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Range Statistics    SOLVE LOCOPT Using MIP From line 109
+
+
+RANGE STATISTICS (ABSOLUTE NON-ZERO FINITE VALUES)
+
+RHS       [min, max] : [ 1.000E+00, 1.000E+02] - Zero values observed as well
+Bound     [min, max] : [ 1.000E+00, 1.000E+00] - Zero values observed as well
+Matrix    [min, max] : [ 1.000E+00, 1.090E+02]
+
+GAMS 40.1.0  93c2a77b Aug 1, 2022           WEX-WEI x86 64bit/MS Windows - 08/09/22 17:34:10 Page 5
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Model Statistics    SOLVE LOCOPT Using MIP From line 109
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS          15     SINGLE EQUATIONS          170
+BLOCKS OF VARIABLES           6     SINGLE VARIABLES           60
+NON ZERO ELEMENTS           599     DISCRETE VARIABLES         40
+
+
+GENERATION TIME      =        0.062 SECONDS      4 MB  40.1.0 93c2a77b WEX-WEI
+GAMS 40.1.0  93c2a77b Aug 1, 2022           WEX-WEI x86 64bit/MS Windows - 08/09/22 17:34:10 Page 6
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Solution Report     SOLVE LOCOPT Using MIP From line 109
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   LOCOPT              OBJECTIVE  Z
+     TYPE    MIP                 DIRECTION  MINIMIZE
+     SOLVER  CPLEX               FROM LINE  109
+
+**** SOLVER STATUS     1 Normal Completion
+**** MODEL STATUS      1 Optimal
+**** OBJECTIVE VALUE               34.0000
+
+ RESOURCE USAGE, LIMIT          0.938 10000000000.000
+ ITERATION COUNT, LIMIT         8    2147483647
+--- *** This solver runs with a demo license. No commercial use.
+--- GMO setup time: 0.00s
+--- GMO memory 0.52 Mb (peak 0.52 Mb)
+--- Dictionary memory 0.00 Mb
+--- Cplex 22.1.0.0 link memory 0.00 Mb (peak 0.02 Mb)
+--- Starting Cplex
+
+
+--- MIP status (101): integer optimal solution.
+--- Cplex Time: 0.00sec (det. 3.02 ticks)
+
+--- Fixing integer variables and solving final LP...
+
+
+--- Fixed MIP status (1): optimal.
+--- Cplex Time: 0.00sec (det. 0.13 ticks)
+
+
+Proven optimal solution
+MIP Solution:           34.000000    (8 iterations, 0 nodes)
+Final Solve:            34.000000    (0 iterations)
+
+Best possible:          34.000000
+Absolute gap:            0.000000
+Relative gap:            0.000000
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU objective           .              .              .             1.0000      
+
+  objective  To minimize the distance of any vehicle from any charging station at any time.
+
+---- EQU constraint1  A vehicle cannot be charged at more than one station at the same time.
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning        -INF            1.0000         1.0000          .          
+car1.noon           -INF             .             1.0000          .          
+car1.evening        -INF             .             1.0000          .          
+car2.morning        -INF             .             1.0000          .          
+car2.noon           -INF            1.0000         1.0000          .          
+car2.evening        -INF             .             1.0000          .          
+car3.morning        -INF             .             1.0000          .          
+car3.noon           -INF            1.0000         1.0000          .          
+car3.evening        -INF             .             1.0000          .          
+
+---- EQU constraint2  Every vehicle must be charged at least once a day.
+
+            LOWER          LEVEL          UPPER         MARGINAL
+
+car1         1.0000         1.0000        +INF             .          
+car2         1.0000         1.0000        +INF             .          
+car3         1.0000         1.0000        +INF             .          
+
+---- EQU constraint3  In order for charging station must first be opened at that location.
+
+                               LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning.basaksehir        -INF             .              .              .          
+car1.morning.besiktas          -INF           -1.0000          .              .          
+car1.morning.kadikoy           -INF           -1.0000          .              .          
+car1.morning.cekmekoy          -INF           -1.0000          .              .          
+car1.noon   .basaksehir        -INF           -1.0000          .              .          
+car1.noon   .besiktas          -INF           -1.0000          .              .          
+car1.noon   .kadikoy           -INF           -1.0000          .              .          
+car1.noon   .cekmekoy          -INF           -1.0000          .              .          
+car1.evening.basaksehir        -INF           -1.0000          .              .          
+car1.evening.besiktas          -INF           -1.0000          .              .          
+car1.evening.kadikoy           -INF           -1.0000          .              .          
+car1.evening.cekmekoy          -INF           -1.0000          .              .          
+car2.morning.basaksehir        -INF           -1.0000          .              .          
+car2.morning.besiktas          -INF           -1.0000          .              .          
+car2.morning.kadikoy           -INF           -1.0000          .              .          
+car2.morning.cekmekoy          -INF           -1.0000          .              .          
+car2.noon   .basaksehir        -INF           -1.0000          .              .          
+car2.noon   .besiktas          -INF           -1.0000          .              .          
+car2.noon   .kadikoy           -INF             .              .              .          
+car2.noon   .cekmekoy          -INF           -1.0000          .              .          
+car2.evening.basaksehir        -INF           -1.0000          .              .          
+car2.evening.besiktas          -INF           -1.0000          .              .          
+car2.evening.kadikoy           -INF           -1.0000          .              .          
+car2.evening.cekmekoy          -INF           -1.0000          .              .          
+car3.morning.basaksehir        -INF           -1.0000          .              .          
+car3.morning.besiktas          -INF           -1.0000          .              .          
+car3.morning.kadikoy           -INF           -1.0000          .              .          
+car3.morning.cekmekoy          -INF           -1.0000          .              .          
+car3.noon   .basaksehir        -INF           -1.0000          .              .          
+car3.noon   .besiktas          -INF           -1.0000          .              .          
+car3.noon   .kadikoy           -INF             .              .              .          
+car3.noon   .cekmekoy          -INF           -1.0000          .              .          
+car3.evening.basaksehir        -INF           -1.0000          .              .          
+car3.evening.besiktas          -INF           -1.0000          .              .          
+car3.evening.kadikoy           -INF           -1.0000          .              .          
+car3.evening.cekmekoy          -INF           -1.0000          .              .          
+
+---- EQU constraint4  If the capacity of the station is full vehicles cannot be charged there.
+
+                          LOWER          LEVEL          UPPER         MARGINAL
+
+morning.basaksehir        -INF           -7.0000          .              .          
+morning.besiktas          -INF          -15.0000          .              .          
+morning.kadikoy           -INF          -15.0000          .              .          
+morning.cekmekoy          -INF          -10.0000          .              .          
+noon   .basaksehir        -INF           -8.0000          .              .          
+noon   .besiktas          -INF          -15.0000          .              .          
+noon   .kadikoy           -INF          -13.0000          .              .          
+noon   .cekmekoy          -INF          -10.0000          .              .          
+evening.basaksehir        -INF           -8.0000          .              .          
+evening.besiktas          -INF          -15.0000          .              .          
+evening.kadikoy           -INF          -15.0000          .              .          
+evening.cekmekoy          -INF          -10.0000          .              .          
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU constrain~        -INF             .              .             EPS         
+
+  constraint5  The number of stations opened should be the minimum amount.
+
+---- EQU constraint6  Charge received from a station cannot exceed the charge capacity of the vehicle
+
+                               LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning.basaksehir        -INF           31.0000       100.0000          .          
+car1.morning.besiktas          -INF           46.0000       100.0000          .          
+car1.morning.kadikoy           -INF           46.0000       100.0000          .          
+car1.morning.cekmekoy          -INF           46.0000       100.0000          .          
+car1.noon   .basaksehir        -INF           15.0000       100.0000          .          
+car1.noon   .besiktas          -INF           15.0000       100.0000          .          
+car1.noon   .kadikoy           -INF           15.0000       100.0000          .          
+car1.noon   .cekmekoy          -INF           15.0000       100.0000          .          
+car1.evening.basaksehir        -INF            5.0000       100.0000          .          
+car1.evening.besiktas          -INF            5.0000       100.0000          .          
+car1.evening.kadikoy           -INF            5.0000       100.0000          .          
+car1.evening.cekmekoy          -INF            5.0000       100.0000          .          
+car2.morning.basaksehir        -INF           50.0000       100.0000          .          
+car2.morning.besiktas          -INF           50.0000       100.0000          .          
+car2.morning.kadikoy           -INF           50.0000       100.0000          .          
+car2.morning.cekmekoy          -INF           50.0000       100.0000          .          
+car2.noon   .basaksehir        -INF           53.0000       100.0000          .          
+car2.noon   .besiktas          -INF           53.0000       100.0000          .          
+car2.noon   .kadikoy           -INF           45.0000       100.0000          .          
+car2.noon   .cekmekoy          -INF           53.0000       100.0000          .          
+car2.evening.basaksehir        -INF           38.0000       100.0000          .          
+car2.evening.besiktas          -INF           38.0000       100.0000          .          
+car2.evening.kadikoy           -INF           38.0000       100.0000          .          
+car2.evening.cekmekoy          -INF           38.0000       100.0000          .          
+car3.morning.basaksehir        -INF           60.0000       100.0000          .          
+car3.morning.besiktas          -INF           60.0000       100.0000          .          
+car3.morning.kadikoy           -INF           60.0000       100.0000          .          
+car3.morning.cekmekoy          -INF           60.0000       100.0000          .          
+car3.noon   .basaksehir        -INF           63.0000       100.0000          .          
+car3.noon   .besiktas          -INF           63.0000       100.0000          .          
+car3.noon   .kadikoy           -INF           52.0000       100.0000          .          
+car3.noon   .cekmekoy          -INF           63.0000       100.0000          .          
+car3.evening.basaksehir        -INF           17.0000       100.0000          .          
+car3.evening.besiktas          -INF           17.0000       100.0000          .          
+car3.evening.kadikoy           -INF           17.0000       100.0000          .          
+car3.evening.cekmekoy          -INF           17.0000       100.0000          .          
+
+---- EQU constraint7  Vehicles cannot be discharged
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning          .            26.0000        +INF             .          
+car1.noon             .              .            +INF             .          
+car1.evening          .              .            +INF             .          
+car2.morning          .              .            +INF             .          
+car2.noon             .            38.0000        +INF             .          
+car2.evening          .              .            +INF             .          
+car3.morning          .              .            +INF             .          
+car3.noon             .            24.0000        +INF             .          
+car3.evening          .              .            +INF             .          
+
+---- EQU constraint8  Vehicles should be able to go to the station if needed.
+
+                               LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning.basaksehir          .             5.0000        +INF             .          
+car1.morning.besiktas            .            20.0000        +INF             .          
+car1.morning.kadikoy             .            20.0000        +INF             .          
+car1.morning.cekmekoy            .            20.0000        +INF             .          
+car1.noon   .basaksehir          .            15.0000        +INF             .          
+car1.noon   .besiktas            .            15.0000        +INF             .          
+car1.noon   .kadikoy             .            15.0000        +INF             .          
+car1.noon   .cekmekoy            .            15.0000        +INF             .          
+car1.evening.basaksehir          .             5.0000        +INF             .          
+car1.evening.besiktas            .             5.0000        +INF             .          
+car1.evening.kadikoy             .             5.0000        +INF             .          
+car1.evening.cekmekoy            .             5.0000        +INF             .          
+car2.morning.basaksehir          .            50.0000        +INF             .          
+car2.morning.besiktas            .            50.0000        +INF             .          
+car2.morning.kadikoy             .            50.0000        +INF             .          
+car2.morning.cekmekoy            .            50.0000        +INF             .          
+car2.noon   .basaksehir          .            15.0000        +INF             .          
+car2.noon   .besiktas            .            15.0000        +INF             .          
+car2.noon   .kadikoy             .             7.0000        +INF             .          
+car2.noon   .cekmekoy            .            15.0000        +INF             .          
+car2.evening.basaksehir          .            38.0000        +INF             .          
+car2.evening.besiktas            .            38.0000        +INF             .          
+car2.evening.kadikoy             .            38.0000        +INF             .          
+car2.evening.cekmekoy            .            38.0000        +INF             .          
+car3.morning.basaksehir          .            60.0000        +INF             .          
+car3.morning.besiktas            .            60.0000        +INF             .          
+car3.morning.kadikoy             .            60.0000        +INF             .          
+car3.morning.cekmekoy            .            60.0000        +INF             .          
+car3.noon   .basaksehir          .            39.0000        +INF             .          
+car3.noon   .besiktas            .            39.0000        +INF             .          
+car3.noon   .kadikoy             .            28.0000        +INF             .          
+car3.noon   .cekmekoy            .            39.0000        +INF             .          
+car3.evening.basaksehir          .            17.0000        +INF             .          
+car3.evening.besiktas            .            17.0000        +INF             .          
+car3.evening.kadikoy             .            17.0000        +INF             .          
+car3.evening.cekmekoy            .            17.0000        +INF             .          
+
+---- EQU constraint9  The charge value is 0 if we are not going to visit location j
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning        -INF          -74.0000          .              .          
+car1.noon           -INF             .              .              .          
+car1.evening        -INF             .              .              .          
+car2.morning        -INF             .              .              .          
+car2.noon           -INF          -62.0000          .              .          
+car2.evening        -INF             .              .              .          
+car3.morning        -INF             .              .              .          
+car3.noon           -INF          -76.0000          .              .          
+car3.evening        -INF             .              .              .          
+
+---- EQU constraint10  If the range is not enough it indicates that we have to go to the charging station
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning        16.0000        31.0000        +INF             .          
+car1.noon           10.0000        15.0000        +INF             .          
+car1.evening         5.0000         5.0000        +INF            EPS         
+car2.morning        35.0000        50.0000        +INF             .          
+car2.noon           11.0000        49.0000        +INF             .          
+car2.evening        38.0000        38.0000        +INF            EPS         
+car3.morning        21.0000        60.0000        +INF             .          
+car3.noon           31.0000        48.0000        +INF             .          
+car3.evening        17.0000        17.0000        +INF            EPS         
+
+---- EQU constraint11  Current range to decrease by the distance we travel
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+car1.noon          -16.0000       -16.0000       -16.0000         EPS         
+car1.evening       -10.0000       -10.0000       -10.0000         EPS         
+car2.noon          -35.0000       -35.0000       -35.0000         EPS         
+car2.evening       -11.0000       -11.0000       -11.0000         EPS         
+car3.noon          -21.0000       -21.0000       -21.0000         EPS         
+car3.evening       -31.0000       -31.0000       -31.0000         EPS         
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU constrain~        20.0000        20.0000        20.0000         EPS         
+---- EQU constrain~        50.0000        50.0000        50.0000         EPS         
+---- EQU constrain~        60.0000        60.0000        60.0000         EPS         
+
+  constraint12  The initial available range amounts of car1
+  constraint13  The initial available range amounts of car2
+  constraint14  The initial available range amounts of car3
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR Z                 -INF           34.0000        +INF             .          
+
+  Z  objective function
+
+---- VAR r  amount of current charge (km) of vehicle v in period t
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning          .            20.0000        +INF             .          
+car1.noon             .            15.0000        +INF             .          
+car1.evening          .             5.0000        +INF             .          
+car2.morning          .            50.0000        +INF             .          
+car2.noon             .            15.0000        +INF             .          
+car2.evening          .            38.0000        +INF             .          
+car3.morning          .            60.0000        +INF             .          
+car3.noon             .            39.0000        +INF             .          
+car3.evening          .            17.0000        +INF             .          
+
+---- VAR a  amount of charge (km) that vehicle v receives in period t
+
+                    LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning          .            26.0000        +INF             .          
+car1.noon             .              .            +INF            EPS         
+car1.evening          .              .            +INF            EPS         
+car2.morning          .              .            +INF            EPS         
+car2.noon             .            38.0000        +INF             .          
+car2.evening          .              .            +INF            EPS         
+car3.morning          .              .            +INF            EPS         
+car3.noon             .            24.0000        +INF             .          
+car3.evening          .              .            +INF            EPS         
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR p                   .             3.0000        +INF             .          
+
+  p  The minimum number of the electic charge stations
+
+---- VAR x  whether v vehicle is charging in period
+
+                               LOWER          LEVEL          UPPER         MARGINAL
+
+car1.morning.basaksehir          .             1.0000         1.0000        15.0000      
+car1.morning.besiktas            .              .             1.0000        21.0000      
+car1.morning.kadikoy             .              .             1.0000        25.0000      
+car1.morning.cekmekoy            .              .             1.0000        56.0000      
+car1.noon   .basaksehir          .              .             1.0000        15.0000      
+car1.noon   .besiktas            .              .             1.0000        15.0000      
+car1.noon   .kadikoy             .              .             1.0000        18.0000      
+car1.noon   .cekmekoy            .              .             1.0000        49.0000      
+car1.evening.basaksehir          .              .             1.0000        15.0000      
+car1.evening.besiktas            .              .             1.0000        21.0000      
+car1.evening.kadikoy             .              .             1.0000        25.0000      
+car1.evening.cekmekoy            .              .             1.0000        56.0000      
+car2.morning.basaksehir          .              .             1.0000        10.0000      
+car2.morning.besiktas            .              .             1.0000        25.0000      
+car2.morning.kadikoy             .              .             1.0000        38.0000      
+car2.morning.cekmekoy            .              .             1.0000        52.0000      
+car2.noon   .basaksehir          .              .             1.0000        34.0000      
+car2.noon   .besiktas            .              .             1.0000        12.0000      
+car2.noon   .kadikoy             .             1.0000         1.0000         8.0000      
+car2.noon   .cekmekoy            .              .             1.0000        17.0000      
+car2.evening.basaksehir          .              .             1.0000        43.0000      
+car2.evening.besiktas            .              .             1.0000        20.0000      
+car2.evening.kadikoy             .              .             1.0000         5.0000      
+car2.evening.cekmekoy            .              .             1.0000        33.0000      
+car3.morning.basaksehir          .              .             1.0000        53.0000      
+car3.morning.besiktas            .              .             1.0000        26.0000      
+car3.morning.kadikoy             .              .             1.0000        12.0000      
+car3.morning.cekmekoy            .              .             1.0000        29.0000      
+car3.noon   .basaksehir          .              .             1.0000        40.0000      
+car3.noon   .besiktas            .              .             1.0000        14.0000      
+car3.noon   .kadikoy             .             1.0000         1.0000        11.0000      
+car3.noon   .cekmekoy            .              .             1.0000        29.0000      
+car3.evening.basaksehir          .              .             1.0000        60.0000      
+car3.evening.besiktas            .              .             1.0000        38.0000      
+car3.evening.kadikoy             .              .             1.0000        31.0000      
+car3.evening.cekmekoy            .              .             1.0000        17.0000      
+
+---- VAR y  whether to open a charging station at candidate location j
+
+                  LOWER          LEVEL          UPPER         MARGINAL
+
+basaksehir          .             1.0000         1.0000         EPS         
+besiktas            .             1.0000         1.0000         EPS         
+kadikoy             .             1.0000         1.0000         EPS         
+cekmekoy            .             1.0000         1.0000         EPS         
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 40.1.0  93c2a77b Aug 1, 2022           WEX-WEI x86 64bit/MS Windows - 08/09/22 17:34:10 Page 7
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+E x e c u t i o n
+
+
+----    110 VARIABLE x.L  whether v vehicle is charging in period
+
+              basaksehir     kadikoy
+
+car1.morning       1.000
+car2.noon                      1.000
+car3.noon                      1.000
+
+
+----    110 VARIABLE r.L  amount of current charge (km) of vehicle v in period t
+
+         morning        noon     evening
+
+car1      20.000      15.000       5.000
+car2      50.000      15.000      38.000
+car3      60.000      39.000      17.000
+
+
+----    110 VARIABLE a.L  amount of charge (km) that vehicle v receives in period t
+
+         morning        noon
+
+car1      26.000
+car2                  38.000
+car3                  24.000
+
+
+----    110 VARIABLE p.L                   =        3.000  The minimum number of the electic charge stations
+
+----    110 VARIABLE y.L  whether to open a charging station at candidate location j
+
+basaksehir 1.000,    besiktas   1.000,    kadikoy    1.000,    cekmekoy   1.000
+
+
+
+EXECUTION TIME       =        1.078 SECONDS      4 MB  40.1.0 93c2a77b WEX-WEI
+
+
+USER: GAMS Demo license for Alper Ekener             G211201|0002CO-GEN
+      Yildiz Technical University, Turkey                      DL055363
+
+
+**** FILE SUMMARY
+
+Input      D:\alper\Industrial Engineering\Lectures\4th Grade\End. Müh. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+Output     D:\alper\Industrial Engineering\Lectures\4th Grade\End. Müh. Tas. 2\GAMS\loc.opt\LOCOPT.lst

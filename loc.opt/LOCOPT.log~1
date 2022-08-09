@@ -1,0 +1,64 @@
+
+--- Job LOCOPT.gms Start 06/06/22 12:40:51 37.1.0 r07954d5 WEX-WEI x86 64bit/MS Windows
+--- Applying:
+    C:\GAMS\37\gmsprmNT.txt
+--- GAMS Parameters defined
+    Input "D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms"
+    PageSize 0
+    ScrDir "D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\225a\"
+    SysDir C:\GAMS\37\
+    LogOption 3
+    ErrMsg 1
+    ErrorLog 99
+    IDE 1
+    LstTitleLeftAligned 1
+Licensee: GAMS Demo license for Alper Ekener             G211201|0002CO-GEN
+          Yildiz Technical University, Turkey                      DL055363
+          C:\Users\alper\OneDrive\Belgeler\GAMS\gamslice.txt
+          l6117005@std.yildiz.edu.tr, Alper Ekener                         
+          Demo license for demonstration and instructional purposes only
+Processor information: 1 socket(s), 6 core(s), and 12 thread(s) available
+GAMS 37.1.0   Copyright (C) 1987-2021 GAMS Development. All rights reserved
+--- Starting compilation
+--- LOCOPT.gms(94) 3 Mb 2 Errors
+*** Error 149 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Uncontrolled set entered as constant
+*** Error 149 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Uncontrolled set entered as constant
+--- LOCOPT.gms(109) 3 Mb 3 Errors
+*** Error 257 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Solve statement not checked because of previous errors
+--- LOCOPT.gms(110) 3 Mb 8 Errors
+*** Error 141 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+*** Error 141 in D:\alper\Industrial Engineering\Lectures\4th Grade\End. M�h. Tas. 2\GAMS\loc.opt\LOCOPT.gms
+    Symbol declared but no values have been assigned. Check for missing
+       data definition, assignment, data loading or implicit assignment
+       via a solve statement.
+       A wild shot: You may have spurious commas in the explanatory
+       text of a declaration. Check symbol reference list.
+--- LOCOPT.gms(121) 3 Mb 8 Errors
+*** Status: Compilation error(s)
+--- Job LOCOPT.gms Stop 06/06/22 12:40:51 elapsed 0:00:00.023

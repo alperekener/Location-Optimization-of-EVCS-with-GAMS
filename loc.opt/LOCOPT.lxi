@@ -1,0 +1,54 @@
+B 3 C o m p i l a t i o n
+B 132 Equation Listing    SOLVE LOCOPT Using MIP From line 109
+D 135 objective
+D 140 constraint1
+D 151 constraint2
+D 160 constraint3
+D 171 constraint4
+D 182 constraint5
+D 187 constraint6
+D 198 constraint7
+D 209 constraint8
+D 220 constraint9
+D 231 constraint10
+D 242 constraint11
+D 253 constraint12
+D 258 constraint13
+D 263 constraint14
+B 269 Column Listing      SOLVE LOCOPT Using MIP From line 109
+E 272 Z
+E 279 r
+E 324 a
+E 360 p
+E 367 x
+E 413 y
+B 463 Range Statistics    SOLVE LOCOPT Using MIP From line 109
+B 474 Model Statistics    SOLVE LOCOPT Using MIP From line 109
+B 487 Solution Report     SOLVE LOCOPT Using MIP From line 109
+F 531 objective
+F 535 constraint1
+F 549 constraint2
+F 557 constraint3
+F 598 constraint4
+F 617 constraint5
+F 621 constraint6
+F 662 constraint7
+F 676 constraint8
+F 717 constraint9
+F 731 constraint10
+F 745 constraint11
+F 758 constraint12
+F 759 constraint13
+F 760 constraint14
+G 768 Z
+G 772 r
+G 786 a
+G 802 p
+G 806 x
+G 847 y
+B 862 E x e c u t i o n
+I 862 x
+I 872 r
+I 881 a
+I 891 p
+I 892 y
